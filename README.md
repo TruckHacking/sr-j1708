@@ -14,9 +14,11 @@ Here is an example of decoding the output of a Intellon SSC P485 J2497 'converte
 
 ## Installing
 
-To install, clone this repo and create a symbolic link to the cloned directory in your `~/.local/share/libsigrokdecode/decoders/`
+To install on Linux, clone this repo and create a symbolic link to the cloned directory in your `~/.local/share/libsigrokdecode/decoders/`
 
 ```sh
 git clone https://github.com/TruckHacking/sr-j1708
 ln -nsf $(pwd)/sr-j1708 ~/.local/share/libsigrokdecode/decoders/
 ```
+
+To install on Windows, download the code as zip (or clone) and extract (or copy) into a new folder in the PulseView decoders folder -- which is probably `C:\Program Files\sigrok\PulseView\share\libsigrokdecode\decoders`.
