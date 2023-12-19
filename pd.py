@@ -71,7 +71,7 @@ class Decoder(srd.Decoder):
     outputs = []
     tags = ['Automotive']
     options = (
-        {'id': 'message_break', 'desc': 'Delay (in bit times) for message break', 'default': 2, 'values': (2, 10, 12)},
+        {'id': 'message_break', 'desc': 'Delay (in bit times) for message break', 'default': 10, 'values': (2, 10, 12)},
     )
     annotations = (
         ('datum', 'A J1708 message'),
