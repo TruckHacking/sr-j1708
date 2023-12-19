@@ -77,7 +77,7 @@ class Decoder(srd.Decoder):
         ('datum', 'A J1708 message'),
         ('info', 'Protocol info'),
         ('error', 'Protocol violation or error'),
-        ('inline_error', 'Protocol violation or error'),
+        ('inline_error', 'Invalid message'),
         ('delay', 'Inter-message Delay [bit times]'),
         ('bus_access', 'Bus Access time violation [bit times]')
     )
