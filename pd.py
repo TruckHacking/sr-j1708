@@ -19,7 +19,7 @@
 # SOFTWARE.
 import struct
 from functools import reduce
-from typing import Union, Any
+from binascii import hexlify
 
 import sigrokdecode as srd
 
@@ -61,20 +61,6 @@ class SimpleUartFsm:
 
 
 class Decoder(srd.Decoder):
-    uart_fsm: SimpleUartFsm
-    message_break: int  # configurable maximum delay between bytes before making a new message
-    samplerate: float
-    bit_width: Union[float, Any]  # The width of one UART bit in number of samples.
-    data: bytearray
-    data_block: Any  # The data object of the current block being processed
-    type_block: Any  # The type of the current block being processed
-    startsample_block: Union[int, Any]  # The sample start of the current block being processed
-    endsample_block: Union[int, Any]  # The sample end of the current block being processed
-    prev_stopbit_endsample: int  # The sample end of the last observed STOPBIT
-    last_valid_message_stopbit_endsample: int  # The sample end of the last STOPBIT of the last message
-    first_startbit_startsample: int  # The sample start of the first STARTBIT of the last message
-    out_ann: Any
-    out_bin: Any
     api_version = 3
     id = 'j1708'
     name = 'J1708'
@@ -85,13 +71,13 @@ class Decoder(srd.Decoder):
     outputs = []
     tags = ['Automotive']
     options = (
-        {'id': 'message_break', 'desc': 'Delay (in bit times) for message break', 'default': 2, 'values': (2, 10, 12)},
+        {'id': 'message_break', 'desc': 'Delay (in bit times) for message break', 'default': 10, 'values': (2, 10, 12)},
     )
     annotations = (
         ('datum', 'A J1708 message'),
         ('info', 'Protocol info'),
         ('error', 'Protocol violation or error'),
-        ('inline_error', 'Protocol violation or error'),
+        ('inline_error', 'Invalid message'),
         ('delay', 'Inter-message Delay [bit times]'),
         ('bus_access', 'Bus Access time violation [bit times]')
     )
@@ -187,7 +173,8 @@ class Decoder(srd.Decoder):
         # arm message delay measurement
         self.last_valid_message_stopbit_endsample = self.prev_stopbit_endsample
         if not self.is_checksum_valid():
-            data_print = self.data[0:-1].hex() + "(" + self.data[-1:].hex() + ")"
+            expected_crc = Decoder.calculate_checksum(self.data[0:-1])
+            data_print = self.get_hex(self.data[0:-1]) + "(!" + self.get_hex(expected_crc) + ")"
             self.put(self.first_startbit_startsample,
                      self.prev_stopbit_endsample, self.out_ann,
                      [Decoder.ANNOTATION_INLINE_ERROR, [data_print]])
@@ -195,10 +182,10 @@ class Decoder(srd.Decoder):
                      self.prev_stopbit_endsample, self.out_ann,
                      [Decoder.ANNOTATION_ERROR, ['Checksum', 'CRC']])
         else:
-            data_print = self.data[0:-1].hex()
+            data_print = self.get_hex(self.data[0:-1])
             mid_print = hex(self.data[0])
-            payload_print = self.data[1:-1].hex()
-            checksum_print = self.data[-1:].hex()
+            payload_print = self.get_hex(self.data[1:-1])
+            checksum_print = self.get_hex(self.data[-1:])
             self.put(self.first_startbit_startsample, self.prev_stopbit_endsample, self.out_ann,
                      [Decoder.ANNOTATION_DATA, [data_print]])
 
@@ -223,6 +210,9 @@ class Decoder(srd.Decoder):
             self.put(startsample, endsample, self.out_bin,
                      [Decoder.BINARY_CRC, bytes(self.data[-1:])])
         return
+
+    def get_hex(self, data_bytes):
+        return hexlify(data_bytes).decode('utf-8')
 
     def do_message_ready(self):
         self.uart_fsm.transit(SimpleUartFsm.State.WaitForStartBit)
