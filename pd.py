@@ -1,4 +1,4 @@
-# Copyright (c) 2021 National Motor Freight Traffic Association Inc.
+# Copyright (c) 2021-2023 National Motor Freight Traffic Association Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,17 @@ from functools import reduce
 from binascii import hexlify
 
 import sigrokdecode as srd
+
+'''
+OUTPUT_PYTHON format:
+
+Packet:
+[<ptype>, <pdata>]
+
+This is the list of <ptype>s and their respective <pdata> values:
+ - 'MESSAGE': the data is a bytes of the message, incl CRC
+ - 'INVALID_MESSAGE': the data is a bytes of the message, incl CRC
+'''
 
 J1708_BAUD = 9600
 MIN_BUS_ACCESS_BIT_TIMES = 12
@@ -68,7 +79,7 @@ class Decoder(srd.Decoder):
     desc = 'J1708'
     license = 'gplv2+'
     inputs = ['uart']
-    outputs = []
+    outputs = ['j1708']
     tags = ['Automotive']
     options = (
         {'id': 'message_break', 'desc': 'Delay (in bit times) for message break', 'default': 10, 'values': (2, 10, 12)},
@@ -118,6 +129,7 @@ class Decoder(srd.Decoder):
         self.do_message_break_ready()
 
     def start(self):
+        self.out_python = self.register(srd.OUTPUT_PYTHON)
         self.out_ann = self.register(srd.OUTPUT_ANN)
         self.out_bin = self.register(srd.OUTPUT_BINARY)
         self.message_break = self.options['message_break']
@@ -181,6 +193,11 @@ class Decoder(srd.Decoder):
             self.put(int(self.prev_stopbit_endsample - self.bit_width * 10),
                      self.prev_stopbit_endsample, self.out_ann,
                      [Decoder.ANNOTATION_ERROR, ['Checksum', 'CRC']])
+
+            startsample = self.first_startbit_startsample
+            endsample = self.prev_stopbit_endsample
+            self.put(startsample, endsample, self.out_python,
+                     ['INVALID_MESSAGE', bytes(self.data)])
         else:
             data_print = self.get_hex(self.data[0:-1])
             mid_print = hex(self.data[0])
@@ -209,6 +226,11 @@ class Decoder(srd.Decoder):
                      [Decoder.ANNOTATION_FIELDS, ['CRC: ' + checksum_print, checksum_print, 'CRC']])
             self.put(startsample, endsample, self.out_bin,
                      [Decoder.BINARY_CRC, bytes(self.data[-1:])])
+
+            startsample = self.first_startbit_startsample
+            endsample = self.prev_stopbit_endsample
+            self.put(startsample, endsample, self.out_python,
+                     ['MESSAGE', bytes(self.data)])
         return
 
     def get_hex(self, data_bytes):
