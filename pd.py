@@ -142,7 +142,10 @@ class Decoder(srd.Decoder):
     # from https://github.com/TruckHacking/py-hv-networks/blob/master/hv_networks/J1708Driver.py
     @staticmethod
     def calculate_checksum(msg):
-        val = ~reduce(lambda x, y: (x + y) & 0xFF, list(msg)) + 1
+        if len(msg) > 0:
+            val = ~reduce(lambda x, y: (x + y) & 0xFF, list(msg)) + 1
+        else:
+            val = 255
         return struct.pack('B', val & 0xFF)
 
     def is_checksum_valid(self):
